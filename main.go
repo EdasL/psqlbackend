@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -18,18 +19,25 @@ const (
 	dbname = "test"
 )
 
+type newUser struct {
+	Username string
+	Password string
+}
+type userSummary struct {
+	Username string
+	Password string
+}
+
+type users struct {
+	Repositories []userSummary
+}
+
 func main() {
+	initDb()
+	defer db.Close()
 	http.HandleFunc("/api/table", createUserHandler)
 	http.HandleFunc("/api/user", getTableHandler)
 	log.Fatal(http.ListenAndServe("localhost:8000", nil))
-}
-
-func createUserHandler(w http.ResponseWriter, r *http.Request) {
-	//...
-}
-
-func getTableHandler(w http.ResponseWriter, r *http.Request) {
-	//...
 }
 func initDb() {
 	config := dbConfig()
@@ -78,4 +86,68 @@ func dbConfig() map[string]string {
 	conf[dbpass] = password
 	conf[dbname] = name
 	return conf
+}
+
+func createUserHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "POST" {
+		sqlStatement := `
+		INSERT INTO Users (Username, Password)
+		VALUES ($1, $2)`
+		r.ParseForm()
+
+		_, err := db.Exec(sqlStatement, r.FormValue("username"), r.FormValue("password"))
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+		}
+	}
+}
+
+func getTableHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "GET" {
+		users := users{}
+
+		err := queryTable(&users)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
+		out, err := json.Marshal(users)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
+		fmt.Fprintf(w, string(out))
+	}
+}
+
+func queryTable(users *users) error {
+	rows, err := db.Query(`
+		SELECT
+			Username,
+			Password
+		FROM Users
+		`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		user := userSummary{}
+		err = rows.Scan(
+			&user.Username,
+			&user.Password,
+		)
+		if err != nil {
+			return err
+		}
+		users.Repositories = append(users.Repositories, user)
+	}
+	err = rows.Err()
+	if err != nil {
+		return err
+	}
+	fmt.Println(users)
+	return nil
 }
