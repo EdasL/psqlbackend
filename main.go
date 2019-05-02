@@ -69,11 +69,10 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		dec := json.NewDecoder(r.Body)
 		var req userSummary
 		if err := dec.Decode(&req); err != nil {
-			http.Error(w, err.Error(), 500)
+			http.Error(w, err.Error(), 400)
 		}
 		sqlQuery += "'" + req.Username + "'"
 		rows, err := db.Query(sqlQuery)
-		fmt.Println(sqlQuery)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 		}
@@ -106,7 +105,7 @@ func createUserHandler(w http.ResponseWriter, r *http.Request) {
 		dec := json.NewDecoder(r.Body)
 		var req userSummary
 		if err := dec.Decode(&req); err != nil {
-			http.Error(w, err.Error(), 500)
+			http.Error(w, err.Error(), 400)
 		}
 		_, err := db.Exec(sqlStatement, req.Username, req.Password)
 		if err != nil {
@@ -124,7 +123,7 @@ func getTableHandler(w http.ResponseWriter, r *http.Request) {
 
 		err := queryTable(&users)
 		if err != nil {
-			http.Error(w, err.Error(), 500)
+			http.Error(w, err.Error(), 400)
 			return
 		}
 
