@@ -38,6 +38,7 @@ func main() {
 	defer db.Close()
 	http.HandleFunc("/api/user", createUserHandler)
 	http.HandleFunc("/api/table", getTableHandler)
+	http.HandleFunc("/api/login", loginHandler)
 	log.Fatal(http.ListenAndServe("localhost:8000", nil))
 }
 func initDb() {
@@ -55,6 +56,40 @@ func initDb() {
 		panic(err)
 	}
 	fmt.Println("Successfully connected!")
+}
+
+func loginHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "POST" {
+		sqlQuery := `
+		SELECT
+			username,
+			password
+		FROM users
+		WHERE username=
+		`
+		err := r.ParseForm()
+		sqlQuery += "'" + r.FormValue("username") + "'"
+		rows, err := db.Query(sqlQuery)
+		fmt.Println(sqlQuery)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+		}
+		user := userSummary{}
+
+		for rows.Next() {
+			err = rows.Scan(
+				&user.Username,
+				&user.Password,
+			)
+			if err != nil {
+				http.Error(w, err.Error(), 500)
+			}
+		}
+		fmt.Println(user)
+		if user.Password != r.FormValue("password") {
+			http.Error(w, "Wrong password", 400)
+		}
+	}
 }
 
 func createUserHandler(w http.ResponseWriter, r *http.Request) {
