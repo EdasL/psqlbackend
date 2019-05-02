@@ -20,10 +20,6 @@ const (
 	dbname = "test"
 )
 
-type newUser struct {
-	Username string
-	Password string
-}
 type userSummary struct {
 	Username string
 	Password string
@@ -59,6 +55,9 @@ func initDb() {
 }
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 	if r.Method == "POST" {
 		sqlQuery := `
 		SELECT
@@ -67,8 +66,12 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		FROM users
 		WHERE username=
 		`
-		err := r.ParseForm()
-		sqlQuery += "'" + r.FormValue("username") + "'"
+		dec := json.NewDecoder(r.Body)
+		var req userSummary
+		if err := dec.Decode(&req); err != nil {
+			http.Error(w, err.Error(), 500)
+		}
+		sqlQuery += "'" + req.Username + "'"
 		rows, err := db.Query(sqlQuery)
 		fmt.Println(sqlQuery)
 		if err != nil {
@@ -86,31 +89,36 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		fmt.Println(user)
-		if user.Password != r.FormValue("password") {
+		if user.Password != req.Password {
 			http.Error(w, "Wrong password", 400)
 		}
-		w.WriteHeader(http.StatusOK)
 	}
 }
 
 func createUserHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 	if r.Method == "POST" {
 		sqlStatement := `
 		INSERT INTO users (username, password)
 		VALUES ($1, $2)`
-		err := r.ParseForm()
+		dec := json.NewDecoder(r.Body)
+		var req userSummary
+		if err := dec.Decode(&req); err != nil {
+			http.Error(w, err.Error(), 500)
+		}
+		_, err := db.Exec(sqlStatement, req.Username, req.Password)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 		}
-		_, err = db.Exec(sqlStatement, r.FormValue("username"), r.FormValue("password"))
-		if err != nil {
-			http.Error(w, err.Error(), 500)
-		}
-		w.WriteHeader(http.StatusOK)
 	}
 }
 
 func getTableHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 	if r.Method == "GET" {
 		users := users{}
 
