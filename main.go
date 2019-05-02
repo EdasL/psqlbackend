@@ -89,6 +89,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		if user.Password != r.FormValue("password") {
 			http.Error(w, "Wrong password", 400)
 		}
+		w.WriteHeader(http.StatusOK)
 	}
 }
 
@@ -105,6 +106,7 @@ func createUserHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 		}
+		w.WriteHeader(http.StatusOK)
 	}
 }
 
