@@ -6,14 +6,15 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
+
+	_ "github.com/lib/pq"
 )
 
 var db *sql.DB
 
 const (
 	dbhost = "localhost"
-	dbport = "5432"
+	dbport = 5432
 	dbuser = "postgres"
 	dbpass = "admin"
 	dbname = "test"
@@ -35,17 +36,15 @@ type users struct {
 func main() {
 	initDb()
 	defer db.Close()
-	http.HandleFunc("/api/table", createUserHandler)
-	http.HandleFunc("/api/user", getTableHandler)
+	http.HandleFunc("/api/user", createUserHandler)
+	http.HandleFunc("/api/table", getTableHandler)
 	log.Fatal(http.ListenAndServe("localhost:8000", nil))
 }
 func initDb() {
-	config := dbConfig()
 	var err error
-	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s "+
+	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
 		"password=%s dbname=%s sslmode=disable",
-		config[dbhost], config[dbport],
-		config[dbuser], config[dbpass], config[dbname])
+		dbhost, dbport, dbuser, dbpass, dbname)
 
 	db, err = sql.Open("postgres", psqlInfo)
 	if err != nil {
@@ -58,44 +57,16 @@ func initDb() {
 	fmt.Println("Successfully connected!")
 }
 
-func dbConfig() map[string]string {
-	conf := make(map[string]string)
-	host, ok := os.LookupEnv(dbhost)
-	if !ok {
-		panic("DBHOST environment variable required but not set")
-	}
-	port, ok := os.LookupEnv(dbport)
-	if !ok {
-		panic("DBPORT environment variable required but not set")
-	}
-	user, ok := os.LookupEnv(dbuser)
-	if !ok {
-		panic("DBUSER environment variable required but not set")
-	}
-	password, ok := os.LookupEnv(dbpass)
-	if !ok {
-		panic("DBPASS environment variable required but not set")
-	}
-	name, ok := os.LookupEnv(dbname)
-	if !ok {
-		panic("DBNAME environment variable required but not set")
-	}
-	conf[dbhost] = host
-	conf[dbport] = port
-	conf[dbuser] = user
-	conf[dbpass] = password
-	conf[dbname] = name
-	return conf
-}
-
 func createUserHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
 		sqlStatement := `
-		INSERT INTO Users (Username, Password)
+		INSERT INTO users (username, password)
 		VALUES ($1, $2)`
-		r.ParseForm()
-
-		_, err := db.Exec(sqlStatement, r.FormValue("username"), r.FormValue("password"))
+		err := r.ParseForm()
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+		}
+		_, err = db.Exec(sqlStatement, r.FormValue("username"), r.FormValue("password"))
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 		}
@@ -125,9 +96,9 @@ func getTableHandler(w http.ResponseWriter, r *http.Request) {
 func queryTable(users *users) error {
 	rows, err := db.Query(`
 		SELECT
-			Username,
-			Password
-		FROM Users
+			username,
+			password
+		FROM users
 		`)
 	if err != nil {
 		return err
